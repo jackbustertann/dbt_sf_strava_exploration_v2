@@ -7,6 +7,9 @@ sources:
       {%- elif target.name == "prod"  -%} STRAVA_PROD
       {%- endif -%}
     schema: raw  
+    freshness: # default freshness
+      warn_after: {count: 1, period: day}
+    loaded_at_field: TO_TIMESTAMP_NTZ(metadata_last_modified)
     tables:
       - name: strava_activities
       - name: strava_activity_streams

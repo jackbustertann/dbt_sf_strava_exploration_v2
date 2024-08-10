@@ -33,7 +33,3 @@ models:
     staging:
       +materialized: table
       +schema: staging
-
-seeds:
-  dbt_sf_strava_exploration_v2:
-    +schema: seeds
