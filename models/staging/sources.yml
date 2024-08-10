@@ -1,0 +1,12 @@
+version: 2
+
+sources:
+  - name: strava_api
+    database: |
+      {%- if  target.name == "dev" -%} STRAVA_PROD
+      {%- elif target.name == "prod"  -%} STRAVA_PROD
+      {%- endif -%}
+    schema: raw  
+    tables:
+      - name: strava_activities
+      - name: strava_activity_streams
