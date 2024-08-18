@@ -1,0 +1,71 @@
+version: 2
+
+models:
+  - name: stg_strava_activities
+    columns:
+      - name: activity_key
+        tests:
+          - unique
+          - not_null
+      - name: activity_id
+        tests:
+          - unique
+          - not_null    
+      - name: distance_m
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+      - name: average_heartrate_bpm
+        tests:
+          - not_null:
+              where: "has_heartrate = true"
+          - dbt_utils.expression_is_true:
+              expression: "> 100"
+              where: "sport != 'other'"
+      - name: max_heartrate_bpm
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "< 200"
+          - not_null:
+              where: "has_heartrate = true"
+      - name: average_power_watts
+        tests:
+          - not_null:
+              where: "has_power = true"
+      - name: normalised_power_watts
+        tests:
+          - not_null:
+              where: "has_power = true"
+      - name: max_power_watts
+        tests:
+          - not_null:
+              where: "has_power = true"
+    tests:
+      - dbt_expectations.expect_column_pair_values_A_to_be_greater_than_B:
+          column_A: elapsed_time_s
+          column_B: moving_time_s
+          or_equal: True
+      - dbt_expectations.expect_column_pair_values_A_to_be_greater_than_B:
+          column_A: max_heartrate_bpm
+          column_B: average_heartrate_bpm
+          or_equal: True
+      - dbt_expectations.expect_column_pair_values_A_to_be_greater_than_B:
+          column_A: max_power_watts
+          column_B: average_power_watts
+          or_equal: True
+      - dbt_expectations.expect_column_pair_values_A_to_be_greater_than_B:
+          column_A: max_speed_ms
+          column_B: average_speed_ms
+          or_equal: True
+  - name: stg_strava_activity_streams
+    columns:
+      - name: activity_stream_key
+        tests:
+          - unique
+          - not_null
+      - name: activity_id
+        tests:
+          - relationships:
+              field: activity_id
+              to: ref('stg_strava_activities')
+
