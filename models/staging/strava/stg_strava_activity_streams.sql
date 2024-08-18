@@ -36,7 +36,7 @@ with activity_streams_raw as (
     {'json_key': 'temp', 'data_type': 'float', 'column_name': 'temperature_c'},
     {'json_key': 'distance', 'data_type': 'float', 'column_name': 'distance_m'},
     {'json_key': 'watts', 'data_type': 'float', 'column_name': 'power_watts'},
-    {'json_key': 'velocity_smooth', 'data_type': 'float', 'column_name': 'speed_kmhr'},
+    {'json_key': 'velocity_smooth', 'data_type': 'float', 'column_name': 'speed_ms'},
     {'json_key': 'grade_smooth', 'data_type': 'float', 'column_name': 'grade_percent'},
     {'json_key': 'altitude', 'data_type': 'float', 'column_name': 'elevation_m'}
     ]
@@ -128,7 +128,7 @@ SELECT
     -- measures (intensity)
     heartrate_bpm,
     -- measures (performance)
-    speed_kmhr,
+    speed_ms,
     power_watts,
     -- technical meta-data
     extracted_timestamp,
