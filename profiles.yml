@@ -1,0 +1,13 @@
+dbt_sf_strava_exploration_v2:
+  outputs:
+    dev:
+      account: "{{ env_var('secrets.SNOWFLAKE_ACCOUNT') }}"
+      database: STRAVA_DEV
+      password: "{{ env_var('secrets.SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('secrets.SNOWFLAKE_ROLE') }}"
+      schema: "{{ env_var('secrets.SNOWFLAKE_SCHEMA') }}"
+      threads: 1
+      type: snowflake
+      user: "{{ env_var('secrets.SNOWFLAKE_USER') }}"
+      warehouse: DBT_WH
+  target: "{{ env_var('secrets.DBT_PROFILE_TARGET') }}"
