@@ -37,10 +37,8 @@ jobs:
       - name: install dbt dependencies
         run: dbt deps
 
-      - name: dbt test --profiles-dir ./
-        run: dbt test
-        env:
-          DBT_PROFILE_TARGET: dev
+      - name: dbt test
+        run: dbt test --target dev --profiles-dir ./
 
 # add task for building changed models + downstream
 # configure target to dev
