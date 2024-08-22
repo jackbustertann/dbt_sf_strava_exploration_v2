@@ -42,4 +42,5 @@ jobs:
           SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
           SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
 
-# add task for building changed models + downstream with dev target
+# add task for building changed models + downstream
+# configure target to dev
