@@ -24,13 +24,8 @@ jobs:
           python-version: '3.11'
           architecture: 'x64'
 
-      - name: install pipenv
-        run: pip install pipenv 
-
       - name: install python dependancies
-        run: |
-          pipenv shell
-          pipenv install
+        run: pip install -r requirements.txt 
 
       - name: install dbt dependencies
         run: dbt deps
