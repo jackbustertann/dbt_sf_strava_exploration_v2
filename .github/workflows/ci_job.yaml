@@ -28,7 +28,9 @@ jobs:
         run: pip install pipenv 
 
       - name: install python dependancies
-        run: pipenv install
+        run: |
+          pipenv shell
+          pipenv install
 
       - name: install dbt dependencies
         run: dbt deps
