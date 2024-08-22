@@ -10,4 +10,3 @@ dbt_sf_strava_exploration_v2:
       type: snowflake
       user: "{{ env_var('secrets.SNOWFLAKE_USER') }}"
       warehouse: DBT_WH
-  target: "{{ env_var('secrets.DBT_PROFILE_TARGET') }}"

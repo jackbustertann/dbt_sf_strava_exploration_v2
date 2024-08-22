@@ -12,7 +12,6 @@ on:
       - '!main'
 
 env:
-  DBT_PROFILE_TARGET: dev
   SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
   SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
   SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
@@ -40,6 +39,8 @@ jobs:
 
       - name: dbt test --profiles-dir ./
         run: dbt test
+        env:
+          DBT_PROFILE_TARGET: dev
 
 # add task for building changed models + downstream
 # configure target to dev
