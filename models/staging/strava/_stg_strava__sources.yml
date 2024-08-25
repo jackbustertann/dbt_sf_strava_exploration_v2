@@ -3,8 +3,9 @@ version: 2
 sources:
   - name: strava_api
     database: |
-      {%- if  target.name == "dev" -%} STRAVA_PROD
-      {%- elif target.name == "prod"  -%} STRAVA_PROD
+      {%- if target.name == "prod" -%} STRAVA_PROD
+      {%- elif target.name == "staging"  -%} STRAVA_PROD
+      {%- elif target.name == "dev"  -%} STRAVA_PROD
       {%- endif -%}
     schema: raw  
     freshness: # default freshness

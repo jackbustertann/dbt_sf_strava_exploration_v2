@@ -45,7 +45,7 @@ jobs:
 
       # build and test modified dbt models
       - name: dbt build
-        run: dbt build --target dev --select state:modified+ --defer --state ./ --profiles-dir ./
+        run: dbt build --target staging --select state:modified+ --defer --state ./ --profiles-dir ./
         env:
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
