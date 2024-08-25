@@ -3,7 +3,7 @@ name: cd-job
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   dbt-cd:
