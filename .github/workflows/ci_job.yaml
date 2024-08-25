@@ -15,26 +15,37 @@ jobs:
   dbt-ci:
     runs-on: ubuntu-latest
     steps:
-      - name: checkout branch to runner
+      - name: Checkout branch to runner
         uses: actions/checkout@v3
 
-      - name: install python
+      - name: Install python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
           architecture: 'x64'
 
-      - name: install pipenv
-        run: pip install pipenv 
+      - name: Install python dependancies
+        run: pip install -r requirements.txt 
 
-      - name: install python dependancies
-        run: pipenv install
-
-      - name: install dbt dependencies
+      - name: Install dbt dependencies
         run: dbt deps
 
-      - name: dbt test
-        run: dbt test
+      - name: Authenticate with GCP
+        id: auth
+        uses: google-github-actions/auth@v0
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Set-up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+
+      - name: Download current dbt manifest from GCP
+        run: |
+          gcloud storage cp gs://strava-exploration-sf-dbt-artifacts/manifest.json .
+
+      # build and test modified dbt models
+      - name: dbt build
+        run: dbt build --target staging --select state:modified+ --defer --state ./ --profiles-dir ./
         env:
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
@@ -42,4 +53,6 @@ jobs:
           SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
           SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
 
-# add task for building changed models + downstream with dev target
+      - name: Upload updated dbt manifest to GCP
+        run: |
+          gcloud storage cp target/manifest.json gs://strava-exploration-sf-dbt-artifacts

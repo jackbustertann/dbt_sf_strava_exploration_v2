@@ -7,6 +7,7 @@ name = "pypi"
 dbt-core = "*"
 dbt-snowflake = "*"
 dbt-bigquery = "*"
+gcloud = "*"
 
 [dev-packages]
 
