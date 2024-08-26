@@ -11,7 +11,7 @@
 
 {{
     config(
-        materialized='incremental',
+        materialized='view' if target.name == 'dev' else 'incremental',
         unique_key='activity_stream_key'
     )
 }}
@@ -19,9 +19,11 @@
 with activity_streams_raw as (
     select *
     from {{ source('strava_api', 'strava_activity_streams') }}
-    {% if is_incremental() %}
-    WHERE metadata_last_modified > (
-        SELECT MAX(extracted_timestamp)
+    {% if target.name == 'dev' %}
+    where TO_DATE(metadata_last_modified) >= dateadd('day', -7, current_date)
+    {% elif is_incremental() %}
+    WHERE TO_TIMESTAMP_TZ(metadata_last_modified || '+00:00') > (
+        SELECT MAX(loaded_timestamp_utc)
         FROM {{ this }}
     )
     {% endif %}
@@ -101,16 +103,19 @@ FROM activity_streams_with_case_when_imputations
 , activity_streams_with_keys_and_metadata AS (
     SELECT 
         *,
-        metadata_last_modified AS extracted_timestamp,
+        TO_TIMESTAMP_TZ(metadata_last_modified || '+00:00') AS extracted_timestamp_utc,
+        CONVERT_TIMEZONE('UTC', DATE_TRUNC('second', current_timestamp)) AS loaded_timestamp_utc,
         regexp_substr(metadata_filename, '\\d+')::int AS activity_id,
         {{ dbt_utils.generate_surrogate_key(['activity_id', 'elapsed_time_s']) }} as activity_stream_key,
-        'strava_api' AS record_source
+        {{ dbt_utils.generate_surrogate_key(['activity_id']) }} as activity_key,
+        'strava-api-v3/' || metadata_filename AS record_source
     FROM activity_streams_with_calculated_fields
 )
 
 SELECT 
     -- surrogate keys
     activity_stream_key,
+    activity_key,
     -- natural keys
     activity_id,
     elapsed_time_s,
@@ -131,6 +136,7 @@ SELECT
     speed_ms,
     power_watts,
     -- technical meta-data
-    extracted_timestamp,
+    extracted_timestamp_utc,
+    loaded_timestamp_utc,
     record_source
 FROM activity_streams_with_keys_and_metadata

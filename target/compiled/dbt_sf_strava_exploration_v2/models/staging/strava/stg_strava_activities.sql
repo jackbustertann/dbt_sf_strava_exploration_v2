@@ -15,9 +15,9 @@ with activities_raw as (
     select *
     from STRAVA_PROD.raw.strava_activities
     
-    WHERE metadata_last_modified > (
-        SELECT MAX(extracted_timestamp)
-        FROM STRAVA_DEV.staging.stg_strava_activities
+    WHERE TO_TIMESTAMP_TZ(metadata_last_modified || '+00:00') > (
+        SELECT MAX(loaded_timestamp_utc)
+        FROM STRAVA_STAGING.staging.stg_strava_activities
     )
     
 )
@@ -48,7 +48,7 @@ with activities_raw as (
     get(VALUE, 'average_watts') AS average_power_watts,
     get(VALUE, 'weighted_average_watts') AS normalised_power_watts,
     get(VALUE, 'max_watts') AS max_power_watts,
-    get(VALUE, 'start_date_local') AS activity_start_datetime_ltz,
+    get(VALUE, 'start_date_local') AS activity_start_timestamp_ntz,
     
         metadata_filename,
         metadata_last_modified,
@@ -80,7 +80,7 @@ with activities_raw as (
     average_power_watts::float AS average_power_watts,
     normalised_power_watts::float AS normalised_power_watts,
     max_power_watts::float AS max_power_watts,
-    TO_TIMESTAMP_NTZ(activity_start_datetime_ltz) AS activity_start_datetime_ltz,
+    TO_TIMESTAMP_NTZ(activity_start_timestamp_ntz) AS activity_start_timestamp_ntz,
     
         metadata_filename,
         metadata_last_modified,
@@ -112,7 +112,7 @@ with activities_raw as (
     IFF(average_power_watts = 0, null, average_power_watts) AS average_power_watts,
     IFF(normalised_power_watts = 0, null, normalised_power_watts) AS normalised_power_watts,
     IFF(max_power_watts = 0, null, max_power_watts) AS max_power_watts,
-    IFNULL(activity_start_datetime_ltz, TIMESTAMP_NTZ_FROM_PARTS(1900, 1, 1, 00, 00, 00)) as activity_start_datetime_ltz,
+    IFNULL(activity_start_timestamp_ntz, TIMESTAMP_NTZ_FROM_PARTS(1900, 1, 1, 00, 00, 00)) as activity_start_timestamp_ntz,
     
         metadata_filename,
         metadata_last_modified,
@@ -143,7 +143,7 @@ with activities_raw as (
             ELSE suffer_score
         END AS suffer_score,
         CASE
-            WHEN DATE_TRUNC('day', activity_start_datetime_ltz) <= TO_TIMESTAMP_NTZ('2022-10-23') THEN false
+            WHEN TO_DATE(activity_start_timestamp_ntz) <= TO_DATE('2022-10-23', 'YYYY-MM-DD') THEN false
             WHEN activity_id IN (11766807666, 8465793563, 9994884386, 8465794237) THEN false
             ELSE has_power
         END AS has_power,
@@ -186,10 +186,11 @@ FROM activities_with_case_when_imputations
 , activities_with_keys_and_metadata AS (
     SELECT 
         *,
-        metadata_last_modified AS extracted_timestamp,
+        TO_TIMESTAMP_TZ(metadata_last_modified || '+00:00') AS extracted_timestamp_utc,
+        CONVERT_TIMEZONE('UTC', DATE_TRUNC('second', current_timestamp)) AS loaded_timestamp_utc,
         md5(cast(coalesce(cast(activity_id as TEXT), '_dbt_utils_surrogate_key_null_') as TEXT)) as activity_key,
-        TO_VARCHAR(activity_start_datetime_ltz, 'yyyymmdd') as start_date_key,
-        'strava_api' AS record_source
+        TO_VARCHAR(activity_start_timestamp_ntz, 'yyyymmdd') as start_date_key,
+        'strava-api-v3/' || metadata_filename AS record_source
     FROM activities_with_calculated_fields
 )
 
@@ -200,7 +201,7 @@ SELECT
     -- natural keys
     activity_id,
     -- dates
-    activity_start_datetime_ltz,
+    activity_start_timestamp_ntz,
     -- dimensions (non categorical)
     activity_name,
     -- dimensions (categorical)
@@ -233,6 +234,7 @@ SELECT
     max_power_watts,
     normalised_power_watts,
     -- technical meta-data
-    extracted_timestamp,
+    extracted_timestamp_utc,
+    loaded_timestamp_utc,
     record_source
 FROM activities_with_keys_and_metadata

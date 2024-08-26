@@ -11,7 +11,7 @@
 
 {{
     config(
-        materialized='incremental',
+        materialized='view' if target.name == 'dev' else 'incremental',
         unique_key='activity_key'
     )
 }}
@@ -19,9 +19,11 @@
 with activities_raw as (
     select *
     from {{ source('strava_api', 'strava_activities') }}
-    {% if is_incremental() %}
-    WHERE metadata_last_modified > (
-        SELECT MAX(extracted_timestamp)
+    {% if target.name == 'dev' %}
+    where TO_DATE(metadata_last_modified) >= dateadd('day', -7, current_date)
+    {% elif is_incremental() %}
+    WHERE TO_TIMESTAMP_TZ(metadata_last_modified || '+00:00') > (
+        SELECT MAX(loaded_timestamp_utc)
         FROM {{ this }}
     )
     {% endif %}
@@ -51,7 +53,7 @@ with activities_raw as (
     {'json_key': 'average_watts', 'data_type': 'float', 'column_name': 'average_power_watts', 'impute_on': 'zero', 'default_value': 'null'},
     {'json_key': 'weighted_average_watts', 'data_type': 'float', 'column_name': 'normalised_power_watts', 'impute_on': 'zero', 'default_value': 'null'},
     {'json_key': 'max_watts', 'data_type': 'float', 'column_name': 'max_power_watts', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'start_date_local', 'data_type': 'ntz', 'column_name': 'activity_start_datetime_ltz', 'impute_on': 'null', 'default_value': 'null_ntz'}
+    {'json_key': 'start_date_local', 'data_type': 'ntz', 'column_name': 'activity_start_timestamp_ntz', 'impute_on': 'null', 'default_value': 'null_ntz'}
     ]
 %}
 , activities_extracted_and_renamed AS (
@@ -120,7 +122,7 @@ with activities_raw as (
             ELSE suffer_score
         END AS suffer_score,
         CASE
-            WHEN DATE_TRUNC('day', activity_start_datetime_ltz) <= TO_TIMESTAMP_NTZ('2022-10-23') THEN false
+            WHEN TO_DATE(activity_start_timestamp_ntz) <= TO_DATE('2022-10-23', 'YYYY-MM-DD') THEN false
             WHEN activity_id IN (11766807666, 8465793563, 9994884386, 8465794237) THEN false
             ELSE has_power
         END AS has_power,
@@ -163,10 +165,11 @@ FROM activities_with_case_when_imputations
 , activities_with_keys_and_metadata AS (
     SELECT 
         *,
-        metadata_last_modified AS extracted_timestamp,
+        TO_TIMESTAMP_TZ(metadata_last_modified || '+00:00') AS extracted_timestamp_utc,
+        CONVERT_TIMEZONE('UTC', DATE_TRUNC('second', current_timestamp)) AS loaded_timestamp_utc,
         {{ dbt_utils.generate_surrogate_key(['activity_id']) }} as activity_key,
-        TO_VARCHAR(activity_start_datetime_ltz, 'yyyymmdd') as start_date_key,
-        'strava_api' AS record_source
+        TO_VARCHAR(activity_start_timestamp_ntz, 'yyyymmdd') as start_date_key,
+        'strava-api-v3/' || metadata_filename AS record_source
     FROM activities_with_calculated_fields
 )
 
@@ -177,7 +180,7 @@ SELECT
     -- natural keys
     activity_id,
     -- dates
-    activity_start_datetime_ltz,
+    activity_start_timestamp_ntz,
     -- dimensions (non categorical)
     activity_name,
     -- dimensions (categorical)
@@ -210,6 +213,7 @@ SELECT
     max_power_watts,
     normalised_power_watts,
     -- technical meta-data
-    extracted_timestamp,
+    extracted_timestamp_utc,
+    loaded_timestamp_utc,
     record_source
 FROM activities_with_keys_and_metadata

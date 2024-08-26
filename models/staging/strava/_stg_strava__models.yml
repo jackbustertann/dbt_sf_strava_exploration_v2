@@ -63,9 +63,9 @@ models:
         tests:
           - unique
           - not_null
-      - name: activity_id
+      - name: activity_key
         tests:
           - relationships:
-              field: activity_id
+              field: activity_key
               to: ref('stg_strava_activities')
 

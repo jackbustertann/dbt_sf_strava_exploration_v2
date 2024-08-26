@@ -15,11 +15,6 @@ with activity_streams_raw as (
     select *
     from STRAVA_PROD.raw.strava_activity_streams
     
-    WHERE metadata_last_modified > (
-        SELECT MAX(extracted_timestamp)
-        FROM STRAVA_DEV.staging.stg_strava_activity_streams
-    )
-    
 )
 
 
@@ -98,16 +93,19 @@ FROM activity_streams_with_case_when_imputations
 , activity_streams_with_keys_and_metadata AS (
     SELECT 
         *,
-        metadata_last_modified AS extracted_timestamp,
+        TO_TIMESTAMP_TZ(metadata_last_modified || '+00:00') AS extracted_timestamp_utc,
+        CONVERT_TIMEZONE('UTC', DATE_TRUNC('second', current_timestamp)) AS loaded_timestamp_utc,
         regexp_substr(metadata_filename, '\\d+')::int AS activity_id,
         md5(cast(coalesce(cast(activity_id as TEXT), '_dbt_utils_surrogate_key_null_') || '-' || coalesce(cast(elapsed_time_s as TEXT), '_dbt_utils_surrogate_key_null_') as TEXT)) as activity_stream_key,
-        'strava_api' AS record_source
+        md5(cast(coalesce(cast(activity_id as TEXT), '_dbt_utils_surrogate_key_null_') as TEXT)) as activity_key,
+        'strava-api-v3/' || metadata_filename AS record_source
     FROM activity_streams_with_calculated_fields
 )
 
 SELECT 
     -- surrogate keys
     activity_stream_key,
+    activity_key,
     -- natural keys
     activity_id,
     elapsed_time_s,
@@ -128,6 +126,7 @@ SELECT
     speed_ms,
     power_watts,
     -- technical meta-data
-    extracted_timestamp,
+    extracted_timestamp_utc,
+    loaded_timestamp_utc,
     record_source
 FROM activity_streams_with_keys_and_metadata
