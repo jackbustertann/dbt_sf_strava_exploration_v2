@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: int_activity_streams__filled
+    columns:
+      - name: activity_stream_filled_key
+        tests:
+          - unique
+          - not_null
+# add test that checks for no gaps in sequence, within activities
