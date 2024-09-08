@@ -43,7 +43,6 @@ jobs:
         run: |
           gcloud storage cp gs://strava-exploration-sf-dbt-artifacts/staging-manifest.json .
           mv staging-manifest.json manifest.json
-          rm staging-manifest.json
 
       # build and test modified dbt models
       - name: dbt build
@@ -59,4 +58,3 @@ jobs:
         run: |
           mv target/manifest.json target/staging-manifest.json
           gcloud storage cp target/staging-manifest.json gs://strava-exploration-sf-dbt-artifacts
-          rm target/staging-manifest.json
