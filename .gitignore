@@ -2,3 +2,4 @@ logs/
 .vscode/
 .env
 .user.yml
+target/
