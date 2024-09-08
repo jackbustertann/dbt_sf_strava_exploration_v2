@@ -1,2 +1,0 @@
-SELECT *
-FROM STRAVA_DEV.staging.stg_strava_activity_streams

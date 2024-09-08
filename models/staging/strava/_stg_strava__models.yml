@@ -1,46 +1,46 @@
 version: 2
 
 models:
-  - name: stg_strava_activities
+  - name: stg_strava__activities
     columns:
       - name: activity_key
-        tests:
+        data_tests:
           - unique
           - not_null
       - name: activity_id
-        tests:
+        data_tests:
           - unique
           - not_null    
       - name: distance_m
-        tests:
+        data_tests:
           - dbt_utils.expression_is_true:
               expression: "> 0"
       - name: average_heartrate_bpm
-        tests:
+        data_tests:
           - not_null:
               where: "has_heartrate = true"
           - dbt_utils.expression_is_true:
               expression: "> 100"
               where: "sport != 'other'"
       - name: max_heartrate_bpm
-        tests:
+        data_tests:
           - dbt_utils.expression_is_true:
               expression: "< 200"
           - not_null:
               where: "has_heartrate = true"
       - name: average_power_watts
-        tests:
+        data_tests:
           - not_null:
               where: "has_power = true"
       - name: normalised_power_watts
-        tests:
+        data_tests:
           - not_null:
               where: "has_power = true"
       - name: max_power_watts
-        tests:
+        data_tests:
           - not_null:
               where: "has_power = true"
-    tests:
+    data_tests:
       - dbt_expectations.expect_column_pair_values_A_to_be_greater_than_B:
           column_A: elapsed_time_s
           column_B: moving_time_s
@@ -57,15 +57,15 @@ models:
           column_A: max_speed_ms
           column_B: average_speed_ms
           or_equal: True
-  - name: stg_strava_activity_streams
+  - name: stg_strava__activity_streams
     columns:
       - name: activity_stream_key
-        tests:
+        data_tests:
           - unique
           - not_null
       - name: activity_key
-        tests:
+        data_tests:
           - relationships:
               field: activity_key
-              to: ref('stg_strava_activities')
+              to: ref('stg_strava__activities')
 

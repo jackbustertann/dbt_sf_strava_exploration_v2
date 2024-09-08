@@ -12,13 +12,14 @@
 {{
     config(
         materialized='view' if target.name == 'dev' else 'incremental',
-        unique_key='activity_key'
+        unique_key='activity_key',
+        on_schema_change='fail'
     )
 }}
 
 with activities_raw as (
     select *
-    from {{ source('strava_api', 'strava_activities') }}
+    from {{ source('strava_api_v3', 'strava__activities') }}
     {% if target.name == 'dev' %}
     where TO_DATE(metadata_last_modified) >= dateadd('day', -7, current_date)
     {% elif is_incremental() %}

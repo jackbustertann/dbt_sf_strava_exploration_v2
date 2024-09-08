@@ -2,3 +2,5 @@ logs/
 .vscode/
 .env
 .user.yml
+target/*
+!target/manifest.json

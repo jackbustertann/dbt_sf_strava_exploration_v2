@@ -41,7 +41,8 @@ jobs:
 
       - name: Download current dbt manifest from GCP
         run: |
-          gcloud storage cp gs://strava-exploration-sf-dbt-artifacts/manifest.json .
+          gcloud storage cp gs://strava-exploration-sf-dbt-artifacts/staging-manifest.json .
+          mv staging-manifest.json manifest.json
 
       # build and test modified dbt models
       - name: dbt build
@@ -55,4 +56,5 @@ jobs:
 
       - name: Upload updated dbt manifest to GCP
         run: |
-          gcloud storage cp target/manifest.json gs://strava-exploration-sf-dbt-artifacts
+          mv target/manifest.json target/staging-manifest.json
+          gcloud storage cp target/staging-manifest.json gs://strava-exploration-sf-dbt-artifacts
