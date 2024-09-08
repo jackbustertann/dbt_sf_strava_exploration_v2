@@ -1,13 +1,14 @@
 {{
     config(
         materialized='view' if target.name == 'dev' else 'incremental',
-        unique_key='activity_stream_filled_key'
+        unique_key='activity_stream_filled_key',
+        on_schema_change='fail'
     )
 }}
 
 WITH activities AS (
-    SELECT activity_key, activity_id, elapsed_time_s
-    FROM {{ ref('stg_strava_activities') }}
+    SELECT activity_key, elapsed_time_s
+    FROM {{ ref('stg_strava__activities') }}
     {% if target.name == 'dev' %}
     where TO_DATE(loaded_timestamp_utc) >= dateadd('day', -7, current_date)
     {% elif is_incremental() %}
@@ -20,29 +21,35 @@ WITH activities AS (
 
 activity_streams AS (
     SELECT *
-    FROM {{ ref("stg_strava_activity_streams") }}
-    WHERE activity_id IN (
-        SELECT activity_id
+    FROM {{ ref("stg_strava__activity_streams") }}
+    WHERE activity_key IN (
+        SELECT activity_key
         FROM activities
     )
 ),
 
+elapsed_time_filled AS (
+    SELECT 
+        activities.activity_key,
+        CAST(time.value AS INT) AS elapsed_time_filled_s,
+        {{ dbt_utils.generate_surrogate_key(['activity_key', 'elapsed_time_filled_s']) }} as activity_stream_filled_key
+    FROM activities, 
+        LATERAL FLATTEN(INPUT => ARRAY_GENERATE_RANGE(0, activities.elapsed_time_s)) time
+),
+
 activity_streams_filled AS (
     SELECT
-        {{ dbt_utils.generate_surrogate_key(['activity_id', 'elapsed_time_s']) }} as activity_stream_filled_key,
+        elapsed_time_filled.activity_stream_filled_key,
+        elapsed_time_filled.activity_key,
+        elapsed_time_filled.elapsed_time_filled_s AS elapsed_time_s,
+        activity_streams.* EXCLUDE (activity_key, elapsed_time_s),
         CASE 
             WHEN activity_stream_key IS NULL THEN false
             ELSE true 
-        END AS is_recorded,
-        *
-    FROM (
-        SELECT 
-            activities.activity_id AS activity_id,
-            time.value AS elapsed_time_s
-        FROM activities, 
-            LATERAL FLATTEN(INPUT => ARRAY_GENERATE_RANGE(0, activities.elapsed_time_s)) time
-    ) AS elapsed_time_filled
-    NATURAL LEFT JOIN activity_streams
+        END AS is_recorded
+    FROM elapsed_time_filled
+    LEFT JOIN activity_streams
+    ON elapsed_time_filled.activity_stream_filled_key = activity_streams.activity_stream_key
 )
 
 SELECT 
@@ -51,7 +58,6 @@ SELECT
     activity_stream_key,
     activity_key,
     -- natural keys
-    activity_id,
     elapsed_time_s,
     -- dimensions (boolean)
     is_moving,

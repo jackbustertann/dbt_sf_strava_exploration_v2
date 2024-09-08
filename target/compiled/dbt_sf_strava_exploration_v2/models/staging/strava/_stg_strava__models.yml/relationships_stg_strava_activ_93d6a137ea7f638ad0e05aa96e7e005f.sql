@@ -4,13 +4,13 @@
 
 with child as (
     select activity_key as from_field
-    from STRAVA_PROD.staging.stg_strava_activity_streams
+    from STRAVA_DEV.staging.stg_strava_activity_streams
     where activity_key is not null
 ),
 
 parent as (
     select activity_key as to_field
-    from STRAVA_PROD.staging.stg_strava_activities
+    from STRAVA_DEV.staging.stg_strava_activities
 )
 
 select

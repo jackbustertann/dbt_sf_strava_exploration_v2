@@ -12,13 +12,14 @@
 {{
     config(
         materialized='view' if target.name == 'dev' else 'incremental',
-        unique_key='activity_stream_key'
+        unique_key='activity_stream_key',
+        on_schema_change='fail'
     )
 }}
 
 with activity_streams_raw as (
     select *
-    from {{ source('strava_api', 'strava_activity_streams') }}
+    from {{ source('strava_api_v3', 'strava__activity_streams') }}
     {% if target.name == 'dev' %}
     where TO_DATE(metadata_last_modified) >= dateadd('day', -7, current_date)
     {% elif is_incremental() %}
@@ -106,8 +107,8 @@ FROM activity_streams_with_case_when_imputations
         TO_TIMESTAMP_TZ(metadata_last_modified || '+00:00') AS extracted_timestamp_utc,
         CONVERT_TIMEZONE('UTC', DATE_TRUNC('second', current_timestamp)) AS loaded_timestamp_utc,
         regexp_substr(metadata_filename, '\\d+')::int AS activity_id,
-        {{ dbt_utils.generate_surrogate_key(['activity_id', 'elapsed_time_s']) }} as activity_stream_key,
         {{ dbt_utils.generate_surrogate_key(['activity_id']) }} as activity_key,
+        {{ dbt_utils.generate_surrogate_key(['activity_key', 'elapsed_time_s']) }} as activity_stream_key,
         'strava-api-v3/' || metadata_filename AS record_source
     FROM activity_streams_with_calculated_fields
 )
@@ -117,7 +118,6 @@ SELECT
     activity_stream_key,
     activity_key,
     -- natural keys
-    activity_id,
     elapsed_time_s,
     -- dimensions (boolean)
     is_moving,

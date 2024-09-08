@@ -4,7 +4,14 @@ models:
   - name: int_activity_streams__filled
     columns:
       - name: activity_stream_filled_key
-        tests:
+        data_tests:
           - unique
           - not_null
-# add test that checks for no gaps in sequence, within activities
+      - name: activity_key
+        data_tests:
+          - not_null
+      - name: elapsed_time_s
+        data_tests:
+          - dbt_utils.sequential_values:
+              interval: 1
+              group_by_columns: [activity_key]

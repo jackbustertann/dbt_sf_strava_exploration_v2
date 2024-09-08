@@ -1,10 +1,8 @@
 
+  create or replace   view STRAVA_DEV.staging.stg_strava_activity_streams
   
-    
-
-        create or replace transient table STRAVA_PROD.staging.stg_strava_activity_streams
-         as
-        (-- steps
+   as (
+    -- steps
 -- extract required keys from JSON [x]
 -- rename columns [x]
 -- cast data-types [x]
@@ -20,6 +18,8 @@
 with activity_streams_raw as (
     select *
     from STRAVA_PROD.raw.strava_activity_streams
+    
+    where TO_DATE(metadata_last_modified) >= dateadd('day', -7, current_date)
     
 )
 
@@ -136,6 +136,5 @@ SELECT
     loaded_timestamp_utc,
     record_source
 FROM activity_streams_with_keys_and_metadata
-        );
-      
-  
+  );
+

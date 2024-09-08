@@ -1,4 +1,10 @@
--- steps
+
+  
+    
+
+        create or replace transient table STRAVA_PROD.staging.stg_strava__activities
+         as
+        (-- steps
 -- extract required keys from JSON [x]
 -- rename columns [x]
 -- cast data-types [x]
@@ -9,58 +15,42 @@
 -- add file meta-data (created/extracted/loaded ts, source system) [x]
 -- generate surrogate keys [x]
 
-{{
-    config(
-        materialized='view' if target.name == 'dev' else 'incremental',
-        unique_key='activity_key'
-    )
-}}
+
 
 with activities_raw as (
     select *
-    from {{ source('strava_api', 'strava_activities') }}
-    {% if target.name == 'dev' %}
-    where TO_DATE(metadata_last_modified) >= dateadd('day', -7, current_date)
-    {% elif is_incremental() %}
-    WHERE TO_TIMESTAMP_TZ(metadata_last_modified || '+00:00') > (
-        SELECT MAX(loaded_timestamp_utc)
-        FROM {{ this }}
-    )
-    {% endif %}
+    from STRAVA_PROD.raw.strava__activities
+    
 )
 
-{% set columns_lst = [
-    {'json_key': 'id', 'data_type': 'int', 'column_name': 'activity_id', 'impute_on': 'null', 'default_value': -1},
-    {'json_key': 'name', 'data_type': 'str', 'column_name': 'activity_name'},
-    {'json_key': 'type', 'data_type': 'str', 'column_name': 'activity_type'},
-    {'json_key': 'has_heartrate', 'data_type': 'bool', 'column_name': 'has_heartrate', 'impute_on': 'null', 'default_value': false},
-    {'json_key': 'device_watts', 'data_type': 'bool', 'column_name': 'has_power', 'impute_on': 'null', 'default_value': false},
-    {'json_key': 'manual', 'data_type': 'bool', 'column_name': 'is_manual', 'impute_on': 'null', 'default_value': false},
-    {'json_key': 'distance', 'data_type': 'float', 'column_name': 'distance_m', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'elev_low', 'data_type': 'float', 'column_name': 'min_elevation_m', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'elev_high', 'data_type': 'float', 'column_name': 'max_elevation_m', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'total_elevation_gain', 'data_type': 'float', 'column_name': 'elevation_gain_m', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'moving_time', 'data_type': 'float', 'column_name': 'moving_time_s', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'elapsed_time', 'data_type': 'float', 'column_name': 'elapsed_time_s', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'average_speed', 'data_type': 'float', 'column_name': 'average_speed_ms', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'max_speed', 'data_type': 'float', 'column_name': 'max_speed_ms', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'average_cadence', 'data_type': 'float', 'column_name': 'average_cadence_rpm', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'average_temp', 'data_type': 'float', 'column_name': 'average_tempature_c', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'kilojoules', 'data_type': 'float', 'column_name': 'calories_kj', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'average_heartrate', 'data_type': 'float', 'column_name': 'average_heartrate_bpm', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'max_heartrate', 'data_type': 'float', 'column_name': 'max_heartrate_bpm', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'suffer_score', 'data_type': 'float', 'column_name': 'suffer_score', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'average_watts', 'data_type': 'float', 'column_name': 'average_power_watts', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'weighted_average_watts', 'data_type': 'float', 'column_name': 'normalised_power_watts', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'max_watts', 'data_type': 'float', 'column_name': 'max_power_watts', 'impute_on': 'zero', 'default_value': 'null'},
-    {'json_key': 'start_date_local', 'data_type': 'ntz', 'column_name': 'activity_start_timestamp_ntz', 'impute_on': 'null', 'default_value': 'null_ntz'}
-    ]
-%}
+
 , activities_extracted_and_renamed AS (
     SELECT 
-    {% for col in columns_lst -%}
-        get(VALUE, '{{ col.json_key }}') AS {{ col.column_name }},
-    {% endfor %}
+    get(VALUE, 'id') AS activity_id,
+    get(VALUE, 'name') AS activity_name,
+    get(VALUE, 'type') AS activity_type,
+    get(VALUE, 'has_heartrate') AS has_heartrate,
+    get(VALUE, 'device_watts') AS has_power,
+    get(VALUE, 'manual') AS is_manual,
+    get(VALUE, 'distance') AS distance_m,
+    get(VALUE, 'elev_low') AS min_elevation_m,
+    get(VALUE, 'elev_high') AS max_elevation_m,
+    get(VALUE, 'total_elevation_gain') AS elevation_gain_m,
+    get(VALUE, 'moving_time') AS moving_time_s,
+    get(VALUE, 'elapsed_time') AS elapsed_time_s,
+    get(VALUE, 'average_speed') AS average_speed_ms,
+    get(VALUE, 'max_speed') AS max_speed_ms,
+    get(VALUE, 'average_cadence') AS average_cadence_rpm,
+    get(VALUE, 'average_temp') AS average_tempature_c,
+    get(VALUE, 'kilojoules') AS calories_kj,
+    get(VALUE, 'average_heartrate') AS average_heartrate_bpm,
+    get(VALUE, 'max_heartrate') AS max_heartrate_bpm,
+    get(VALUE, 'suffer_score') AS suffer_score,
+    get(VALUE, 'average_watts') AS average_power_watts,
+    get(VALUE, 'weighted_average_watts') AS normalised_power_watts,
+    get(VALUE, 'max_watts') AS max_power_watts,
+    get(VALUE, 'start_date_local') AS activity_start_timestamp_ntz,
+    
         metadata_filename,
         metadata_last_modified,
     FROM activities_raw, LATERAL FLATTEN(INPUT => RAW_JSON)
@@ -68,13 +58,31 @@ with activities_raw as (
 
 , activities_casted AS (
     SELECT 
-    {% for col in columns_lst -%}
-        {{
-            cast_column(
-                col.column_name, col.data_type
-            )
-        }},
-    {% endfor %}
+    activity_id::int AS activity_id,
+    activity_name::string AS activity_name,
+    activity_type::string AS activity_type,
+    has_heartrate::boolean AS has_heartrate,
+    has_power::boolean AS has_power,
+    is_manual::boolean AS is_manual,
+    distance_m::float AS distance_m,
+    min_elevation_m::float AS min_elevation_m,
+    max_elevation_m::float AS max_elevation_m,
+    elevation_gain_m::float AS elevation_gain_m,
+    moving_time_s::float AS moving_time_s,
+    elapsed_time_s::float AS elapsed_time_s,
+    average_speed_ms::float AS average_speed_ms,
+    max_speed_ms::float AS max_speed_ms,
+    average_cadence_rpm::float AS average_cadence_rpm,
+    average_tempature_c::float AS average_tempature_c,
+    calories_kj::float AS calories_kj,
+    average_heartrate_bpm::float AS average_heartrate_bpm,
+    max_heartrate_bpm::float AS max_heartrate_bpm,
+    suffer_score::float AS suffer_score,
+    average_power_watts::float AS average_power_watts,
+    normalised_power_watts::float AS normalised_power_watts,
+    max_power_watts::float AS max_power_watts,
+    TO_TIMESTAMP_NTZ(activity_start_timestamp_ntz) AS activity_start_timestamp_ntz,
+    
         metadata_filename,
         metadata_last_modified,
     FROM activities_extracted_and_renamed
@@ -82,17 +90,31 @@ with activities_raw as (
 
 , activities_with_default_value_imputations AS (
     SELECT 
-    {% for col in columns_lst -%}
-        {%- if 'impute_on' in col.keys() -%}
-        {{
-            impute_column(
-                col.column_name, col.impute_on, col.default_value
-            )
-        }},
-        {%- else -%}
-        {{ col.column_name }},
-        {%- endif %}
-    {% endfor %}
+    IFNULL(activity_id, -1) as activity_id,
+    activity_name,
+    activity_type,
+    IFNULL(has_heartrate, False) as has_heartrate,
+    IFNULL(has_power, False) as has_power,
+    IFNULL(is_manual, False) as is_manual,
+    IFF(distance_m = 0, null, distance_m) AS distance_m,
+    IFF(min_elevation_m = 0, null, min_elevation_m) AS min_elevation_m,
+    IFF(max_elevation_m = 0, null, max_elevation_m) AS max_elevation_m,
+    IFF(elevation_gain_m = 0, null, elevation_gain_m) AS elevation_gain_m,
+    IFF(moving_time_s = 0, null, moving_time_s) AS moving_time_s,
+    IFF(elapsed_time_s = 0, null, elapsed_time_s) AS elapsed_time_s,
+    IFF(average_speed_ms = 0, null, average_speed_ms) AS average_speed_ms,
+    IFF(max_speed_ms = 0, null, max_speed_ms) AS max_speed_ms,
+    IFF(average_cadence_rpm = 0, null, average_cadence_rpm) AS average_cadence_rpm,
+    IFF(average_tempature_c = 0, null, average_tempature_c) AS average_tempature_c,
+    IFF(calories_kj = 0, null, calories_kj) AS calories_kj,
+    IFF(average_heartrate_bpm = 0, null, average_heartrate_bpm) AS average_heartrate_bpm,
+    IFF(max_heartrate_bpm = 0, null, max_heartrate_bpm) AS max_heartrate_bpm,
+    IFF(suffer_score = 0, null, suffer_score) AS suffer_score,
+    IFF(average_power_watts = 0, null, average_power_watts) AS average_power_watts,
+    IFF(normalised_power_watts = 0, null, normalised_power_watts) AS normalised_power_watts,
+    IFF(max_power_watts = 0, null, max_power_watts) AS max_power_watts,
+    IFNULL(activity_start_timestamp_ntz, TIMESTAMP_NTZ_FROM_PARTS(1900, 1, 1, 00, 00, 00)) as activity_start_timestamp_ntz,
+    
         metadata_filename,
         metadata_last_modified,
     FROM activities_casted
@@ -167,7 +189,7 @@ FROM activities_with_case_when_imputations
         *,
         TO_TIMESTAMP_TZ(metadata_last_modified || '+00:00') AS extracted_timestamp_utc,
         CONVERT_TIMEZONE('UTC', DATE_TRUNC('second', current_timestamp)) AS loaded_timestamp_utc,
-        {{ dbt_utils.generate_surrogate_key(['activity_id']) }} as activity_key,
+        md5(cast(coalesce(cast(activity_id as TEXT), '_dbt_utils_surrogate_key_null_') as TEXT)) as activity_key,
         TO_VARCHAR(activity_start_timestamp_ntz, 'yyyymmdd') as start_date_key,
         'strava-api-v3/' || metadata_filename AS record_source
     FROM activities_with_calculated_fields
@@ -217,3 +239,6 @@ SELECT
     loaded_timestamp_utc,
     record_source
 FROM activities_with_keys_and_metadata
+        );
+      
+  

@@ -15,6 +15,8 @@ with activity_streams_raw as (
     select *
     from STRAVA_PROD.raw.strava_activity_streams
     
+    where TO_DATE(metadata_last_modified) >= dateadd('day', -7, current_date)
+    
 )
 
 

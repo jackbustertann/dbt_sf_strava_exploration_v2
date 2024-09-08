@@ -1,7 +1,7 @@
 version: 2
 
 sources:
-  - name: strava_api
+  - name: strava_api_v3
     database: |
       {%- if target.name == "prod" -%} STRAVA_PROD
       {%- elif target.name == "staging"  -%} STRAVA_PROD
@@ -12,5 +12,5 @@ sources:
       warn_after: {count: 1, period: day}
     loaded_at_field: TO_TIMESTAMP_NTZ(metadata_last_modified)
     tables:
-      - name: strava_activities
-      - name: strava_activity_streams
+      - name: strava__activities
+      - name: strava__activity_streams
