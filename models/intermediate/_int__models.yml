@@ -7,9 +7,34 @@ models:
         data_tests:
           - unique
           - not_null
+      - name: effort_duration_s
+        data_tests:
+          - accepted_values:
+              values: [15, 60, 300, 1200, 3600]
+      - name: start_time_s
+        data_tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      - name: end_time_s
+        data_tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 15"
+      - name: effort_coverage_s
+        data_tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0" 
       - name: activity_key
         data_tests:
           - not_null
           - relationships:
               field: activity_key
               to: ref('stg_strava__activities')
+    data_tests:
+      - dbt_expectations.expect_column_pair_values_A_to_be_greater_than_B:
+          column_A: end_time_s
+          column_B: start_time_s
+          or_equal: True
+
+# add tests
+# - effort coverage / effort duration greater than threshold %
+# - effort duration = end time - start time

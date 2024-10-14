@@ -32,16 +32,14 @@
 WITH activities AS (
     SELECT {{ activity_key_col }}, {{ elapsed_time_col }}
     FROM {{ ref('stg_strava__activities') }}
-    {% if target.name == 'dev' %}
-    where TO_DATE(loaded_timestamp_utc) >= dateadd('day', -7, current_date)
-    {% elif is_incremental() %}
-    WHERE loaded_timestamp_utc > (
-        SELECT MAX(loaded_timestamp_utc)
-        FROM {{ this }}
-    )
-    {% endif %}
-        AND sport = 'ride'
+    WHERE sport = 'ride'
         AND has_power
+    {% if is_incremental() %}
+        AND loaded_timestamp_utc > (
+            SELECT MAX(loaded_timestamp_utc)
+            FROM {{ this }}
+        )
+    {% endif %}
 ),
 
 activity_streams AS (
@@ -145,11 +143,11 @@ SELECT
     {{ dbt_utils.generate_surrogate_key(['activity_key', 'effort_duration']) }} as best_effort_key,
     activity_key,
     -- dimensions
-    effort_duration,
+    effort_duration::int AS effort_duration_s,
     -- measures
-    start_time,
-    end_time,
-    effort_coverage,
+    start_time::int AS start_time_s,
+    end_time::int AS end_time_s,
+    effort_coverage::int AS effort_coverage_s,
     {{ measure_col }},
     avg_{{ measure_col }},
     -- technical meta-data
