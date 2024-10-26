@@ -16,14 +16,6 @@
 -- add materialisation for dev, staging and prod
 -- write data quality tests
 
-{{
-    config(
-        materialized='view' if target.name == 'dev' else 'incremental',
-        unique_key='best_effort_key',
-        on_schema_change='fail'
-    )
-}}
-
 {% set measure_col = 'power_watts' %}
 {% set effort_durations = [15, 60, 300, 1200, 3600] %}
 {% set activity_key_col = 'activity_key' %}
@@ -34,12 +26,6 @@ WITH activities AS (
     FROM {{ ref('stg_strava__activities') }}
     WHERE sport = 'ride'
         AND has_power
-    {% if is_incremental() %}
-        AND loaded_timestamp_utc > (
-            SELECT MAX(loaded_timestamp_utc)
-            FROM {{ this }}
-        )
-    {% endif %}
 ),
 
 activity_streams AS (
@@ -89,20 +75,20 @@ activity_efforts AS (
             (end_time - ({{ effort_duration_over_five }} * 5)) AS start_time,
             end_time,
             {{ measure_col }},
-            SUM(effort_coverage_5s) OVER(ORDER BY end_time ROWS BETWEEN {{ effort_duration_over_five_minus_one }} PRECEDING AND CURRENT ROW) AS effort_coverage,
-            AVG(IFNULL(avg_{{ measure_col }}_5s, 0)) OVER(ORDER BY end_time ROWS BETWEEN {{ effort_duration_over_five_minus_one }} PRECEDING AND CURRENT ROW) AS avg_{{ measure_col }}
+            SUM(effort_coverage_5s) OVER(PARTITION BY {{ activity_key_col }} ORDER BY end_time ROWS BETWEEN {{ effort_duration_over_five_minus_one }} PRECEDING AND CURRENT ROW) AS effort_coverage,
+            AVG(IFNULL(avg_{{ measure_col }}_5s, 0)) OVER(PARTITION BY {{ activity_key_col }} ORDER BY end_time ROWS BETWEEN {{ effort_duration_over_five_minus_one }} PRECEDING AND CURRENT ROW) AS avg_{{ measure_col }}
         FROM (
             SELECT 
                 {{ activity_key_col }},
-                '{{ effort_duration }}' AS effort_duration,
+                {{ effort_duration }} AS effort_duration,
                 elapsed_time_s - 4 AS start_time,
                 elapsed_time_s AS end_time,
                 {{ measure_col }},
                 SUM(CASE WHEN is_recorded THEN 1 ELSE 0 END) OVER(PARTITION BY {{ activity_key_col }} ORDER BY elapsed_time_s ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS effort_coverage_5s,
                 AVG(IFNULL({{ measure_col }}, 0)) OVER(PARTITION BY {{ activity_key_col }} ORDER BY elapsed_time_s ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS avg_{{ measure_col }}_5s
             FROM activity_streams_with_full_coverage
-            WHERE FLOOR(elapsed_time_s/5) = elapsed_time_s/5
         ) AS activity_efforts_5s
+        WHERE FLOOR(end_time/5) = end_time/5
     )
 
     {% elif effort_duration > 0 %}
@@ -112,7 +98,7 @@ activity_efforts AS (
     (
         SELECT 
             {{ activity_key_col }},
-            '{{ effort_duration }}' AS effort_duration,
+            {{ effort_duration }} AS effort_duration,
             {{ elapsed_time_col }} - {{ effort_duration_minus_one }} AS start_time,
             {{ elapsed_time_col }} AS end_time,
             {{ measure_col }},
@@ -134,7 +120,8 @@ activity_efforts_ranked AS (
         *,
         ROW_NUMBER() OVER(PARTITION BY {{ activity_key_col }}, effort_duration ORDER BY avg_{{ measure_col }} desc, start_time) as effort_rank
     FROM activity_efforts
-    WHERE start_time >= 0
+    WHERE end_time >= effort_duration
+        AND effort_coverage / effort_duration >= 0.9
     ORDER BY {{ activity_key_col }}, effort_duration, effort_rank
 )
 
