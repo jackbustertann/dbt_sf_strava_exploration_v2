@@ -1,17 +1,33 @@
 version: 2
 
 models:
-  - name: int_activity_streams__filled
+  - name: int_best_power_efforts
     columns:
-      - name: activity_stream_filled_key
+      - name: best_effort_key
         data_tests:
           - unique
           - not_null
       - name: activity_key
         data_tests:
           - not_null
-      - name: elapsed_time_s
+          - relationships:
+              field: activity_key
+              to: ref('stg_strava__activities')
+      - name: effort_duration_s
         data_tests:
-          - dbt_utils.sequential_values:
-              interval: 1
-              group_by_columns: [activity_key]
+          - accepted_values:
+              values: [15, 60, 300, 1200, 3600]
+      - name: start_time_s
+        data_tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      - name: end_time_s
+        data_tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= effort_duration_s - 1"
+      - name: avg_power_watts
+        data_tests:
+          - not_null
+    data_tests:
+      - dbt_utils.expression_is_true:
+          expression: "effort_coverage_s::float / effort_duration_s >= 0.9"

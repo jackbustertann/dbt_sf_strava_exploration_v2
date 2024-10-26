@@ -24,10 +24,10 @@ models:
               where: "sport != 'other'"
       - name: max_heartrate_bpm
         data_tests:
-          - dbt_utils.expression_is_true:
-              expression: "< 200"
           - not_null:
               where: "has_heartrate = true"
+          - dbt_utils.expression_is_true:
+              expression: "< 200"
       - name: average_power_watts
         data_tests:
           - not_null:
