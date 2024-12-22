@@ -1,0 +1,15 @@
+version: 2
+
+models:
+  - name: ride_activities
+    columns:
+      - name: activity_key
+        data_tests:
+          - unique
+          - not_null
+  - name: run_activities
+    columns:
+      - name: activity_key
+        data_tests:
+          - unique
+          - not_null

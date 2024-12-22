@@ -1,17 +1,19 @@
--- steps
--- extract required keys from JSON [x]
--- rename columns [x]
--- cast data-types [x]
--- convert units [x]
--- null/zero default value imputations (e.g. zero power) [x]
--- case when imputations (e.g. in-accurate heartrate/power readings, manual uploads) [x]
--- basic calculated fields (e.g. sport, is_indoor, is_race) [x]
--- add file meta-data (created/extracted/loaded ts, source system) [x]
--- generate surrogate keys [x]
+-- strava activities, staged
+
+-- methodology
+-- - extract required keys from JSON
+-- - rename columns
+-- - cast data-types
+-- - convert units
+-- - null/zero default value imputations (e.g. zero power)
+-- - case when imputations (e.g. in-accurate heartrate/power readings, manual uploads)
+-- - basic calculated fields (e.g. sport, is_indoor, is_race)
+-- - add file meta-data (created/extracted/loaded ts, source system)
+-- - generate surrogate keys
 
 {{
     config(
-        materialized='view' if target.name == 'dev' else 'incremental',
+        materialized='table' if target.name == 'dev' else 'incremental',
         unique_key='activity_key',
         on_schema_change='fail'
     )
@@ -21,12 +23,12 @@ with activities_raw as (
     select *
     from {{ source('strava_api_v3', 'strava__activities') }}
     {% if target.name == 'dev' %}
-    where TO_DATE(metadata_last_modified) >= dateadd('day', -7, current_date)
+    where TO_DATE(metadata_last_modified) >= dateadd('day', -28, current_date)
     {% elif is_incremental() %}
     WHERE TO_TIMESTAMP_TZ(metadata_last_modified || '+00:00') > (
         SELECT MAX(loaded_timestamp_utc)
         FROM {{ this }}
-    )
+    ) -- TODO: move casting of last modified timestamp to raw table
     {% endif %}
 )
 
@@ -208,8 +210,8 @@ SELECT
     max_heartrate_bpm,
     suffer_score,
     -- measures (performance)
-    average_speed_ms,
-    max_speed_ms,
+    average_speed_ms * 3.6 AS average_speed_kmhr,
+    max_speed_ms * 3.6 AS max_speed_kmhr,
     average_power_watts,
     max_power_watts,
     normalised_power_watts,
