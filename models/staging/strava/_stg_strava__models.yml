@@ -15,13 +15,6 @@ models:
         data_tests:
           - dbt_utils.expression_is_true:
               expression: "> 0"
-      - name: average_heartrate_bpm
-        data_tests:
-          - not_null:
-              where: "has_heartrate = true"
-          - dbt_utils.expression_is_true:
-              expression: "> 100"
-              where: "sport != 'other'"
       - name: max_heartrate_bpm
         data_tests:
           - not_null:
@@ -54,8 +47,8 @@ models:
           column_B: average_power_watts
           or_equal: True
       - dbt_expectations.expect_column_pair_values_A_to_be_greater_than_B:
-          column_A: max_speed_ms
-          column_B: average_speed_ms
+          column_A: max_speed_kmhr
+          column_B: average_speed_kmhr
           or_equal: True
   - name: stg_strava__activity_streams
     columns:

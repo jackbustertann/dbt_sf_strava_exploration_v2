@@ -1,17 +1,19 @@
--- steps
--- extract required keys from JSON [x]
--- rename columns [x]
--- cast data-types [x]
--- convert units [x]
--- null/zero imputations [x]
--- special case imputations [x]
--- basic calculated fields (e.g. extract lat/long from array) [x]
--- add file meta-data (created/extracted/loaded ts, source system) [x]
--- generate surrogate keys [x]
+-- strava activity streams, staged
+
+-- methodology
+-- - extract required keys from JSON
+-- - rename columns
+-- - cast data-types
+-- - convert units
+-- - null/zero imputations
+-- - special case imputations
+-- - basic calculated fields (e.g. extract lat/long from array)
+-- - add file meta-data (created/extracted/loaded ts, source system)
+-- - generate surrogate keys
 
 {{
     config(
-        materialized='view' if target.name == 'dev' else 'incremental',
+        materialized='table' if target.name == 'dev' else 'incremental',
         unique_key='activity_stream_key',
         on_schema_change='fail'
     )
@@ -21,12 +23,12 @@ with activity_streams_raw as (
     select *
     from {{ source('strava_api_v3', 'strava__activity_streams') }}
     {% if target.name == 'dev' %}
-    where TO_DATE(metadata_last_modified) >= dateadd('day', -7, current_date)
+    where TO_DATE(metadata_last_modified) >= dateadd('day', -28, current_date)
     {% elif is_incremental() %}
     WHERE TO_TIMESTAMP_TZ(metadata_last_modified || '+00:00') > (
         SELECT MAX(loaded_timestamp_utc)
         FROM {{ this }}
-    )
+    ) -- TODO: move casting of last modified timestamp to raw table
     {% endif %}
 )
 
@@ -133,7 +135,7 @@ SELECT
     -- measures (intensity)
     heartrate_bpm,
     -- measures (performance)
-    speed_ms,
+    speed_ms * 3.6 AS speed_kmhr,
     power_watts,
     -- technical meta-data
     extracted_timestamp_utc,

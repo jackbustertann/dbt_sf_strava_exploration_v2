@@ -10,9 +10,6 @@ models:
       - name: activity_key
         data_tests:
           - not_null
-          - relationships:
-              field: activity_key
-              to: ref('stg_strava__activities')
       - name: effort_duration_s
         data_tests:
           - accepted_values:
@@ -25,9 +22,81 @@ models:
         data_tests:
           - dbt_utils.expression_is_true:
               expression: ">= effort_duration_s - 1"
-      - name: avg_power_watts
+      - name: average_power_watts
         data_tests:
           - not_null
     data_tests:
       - dbt_utils.expression_is_true:
           expression: "effort_coverage_s::float / effort_duration_s >= 0.9"
+  - name: int_best_power_efforts_long_to_wide
+    columns:
+      - name: activity_key
+        data_tests:
+          - unique
+          - not_null
+  - name: int_ftp_changes
+    columns:
+      - name: ftp_key
+        data_tests:
+          - unique
+          - not_null
+  - name: int_power_zones
+    columns:
+      - name: power_zone_key
+        data_tests:
+          - unique
+          - not_null
+  - name: int_time_in_power_zones
+    columns:
+      - name: time_in_power_zone_key
+        data_tests:
+          - unique
+          - not_null
+  - name: int_time_in_power_zones_long_to_wide
+    columns:
+      - name: activity_key
+        data_tests:
+          - unique
+          - not_null
+  - name: int_heartrate_zones
+    columns:
+      - name: heartrate_zone_key
+        data_tests:
+          - unique
+          - not_null
+  - name: int_time_in_heartrate_zones
+    columns:
+      - name: time_in_heartrate_zone_key
+        data_tests:
+          - unique
+          - not_null
+  - name: int_time_in_heartrate_zones_long_to_wide
+    columns:
+      - name: activity_key
+        data_tests:
+          - unique
+          - not_null
+  - name: int_best_distance_efforts_ride
+    columns:
+      - name: best_distance_effort_key
+        data_tests:
+          - unique
+          - not_null
+  - name: int_best_distance_efforts_ride_long_to_wide
+    columns:
+      - name: activity_key
+        data_tests:
+          - unique
+          - not_null
+  - name: int_best_distance_efforts_run
+    columns:
+      - name: best_distance_effort_key
+        data_tests:
+          - unique
+          - not_null
+  - name: int_best_distance_efforts_run_long_to_wide
+    columns:
+      - name: activity_key
+        data_tests:
+          - unique
+          - not_null

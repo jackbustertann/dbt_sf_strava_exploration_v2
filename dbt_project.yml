@@ -31,8 +31,14 @@ models:
   dbt_sf_strava_exploration_v2:
     # Config indicated by + and applies to all files under models/example/
     staging:
-      +materialized: view
+      +materialized: table
       +schema: staging
     intermediate:
       +materialized: view
       +schema: intermediate
+    data_mart:
+      +materialized: table
+      +schema: data_mart
+    utilities:
+      +materialized: table
+      +schema: utilities
