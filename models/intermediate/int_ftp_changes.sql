@@ -45,11 +45,12 @@ best_20_minute_efforts_for_eligible_rides AS (
         )
 ),
 
-new_ftp_efforts AS (
+ftp_changes_with_date_ranges AS (
     SELECT 
         rides.activity_key,
-        rides.activity_date,
-        best_efforts.best_20_min_power_watts
+        activity_date AS start_date,
+        LEAD(activity_date, 1, CONVERT_TIMEZONE('UTC', current_timestamp)::date) OVER(ORDER BY activity_date) AS end_date,
+        best_efforts.best_20_min_power_watts * 0.95 AS ftp_watts
     FROM eligible_rides rides
     JOIN best_20_minute_efforts_for_eligible_rides best_efforts
         ON rides.activity_key = best_efforts.activity_key
@@ -60,13 +61,13 @@ new_ftp_efforts AS (
 
 SELECT 
     -- surrogate keys
-    {{ dbt_utils.generate_surrogate_key(['activity_date']) }} as ftp_key,
+    {{ dbt_utils.generate_surrogate_key(['start_date']) }} as ftp_key,
     activity_key::varchar AS activity_key,
     -- dates
-    activity_date::date AS activity_date,
+    start_date::date AS start_date,
+    end_date::date AS end_date,
     -- measures
-    best_20_min_power_watts::float AS best_20_min_power_watts,
-    best_20_min_power_watts * 0.95 AS ftp_watts,
+    ftp_watts::float AS ftp_watts,
     -- technical meta-data
     CONVERT_TIMEZONE('UTC', DATE_TRUNC('second', current_timestamp)) AS loaded_timestamp_utc
-FROM new_ftp_efforts
+FROM ftp_changes_with_date_ranges

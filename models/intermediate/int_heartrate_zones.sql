@@ -19,41 +19,31 @@
 -- future considerations
 -- - explode zone bounds into one row per day for better joins + more robust primary key
 -- - research other methodologies for calculating heartrate zones which consider resting heartrate
-
-{% set dob = '1997-06-19' %}
-
-WITH age_date_changes AS (
-    SELECT
-        TO_DATE(date_key, 'yyyymmdd') AS start_date,
-        LEAST(DATEADD(year, 1, TO_DATE(date_key, 'yyyymmdd')), CONVERT_TIMEZONE('UTC', current_timestamp)::date) AS end_date,
-        DATEDIFF(year, TO_DATE('{{ dob }}', 'yyyy-mm-dd'), TO_DATE(date_key, 'yyyymmdd')) AS age_years
-    FROM {{ ref("dim_dates") }}
-    WHERE TO_VARCHAR(TO_DATE(date_key, 'yyyymmdd'), 'mm-dd') = TO_VARCHAR(TO_DATE('{{ dob }}', 'yyyy-mm-dd'), 'mm-dd')
-),
-
-max_heartrate_date_changes AS (
-    SELECT 
-        start_date,
-        end_date,
-        ROUND(211 - (0.64 * age_years), 0) AS estimated_max_hr
-    FROM age_date_changes
-),
-
 {% set lower_bounds = [0, 0.59, 0.78, 0.87, 0.97] %}
 {% set upper_bounds = [0.59, 0.78, 0.87, 0.97, -1] %}
+
+WITH max_heartrate_changes AS (
+    SELECT 
+        max_heartrate_key, 
+        start_date,
+        end_date,
+        estimated_max_heartrate_bpm
+    FROM {{ ref('int_max_heartrate_changes') }}
+),
 
 heartrate_zones AS (
 {% for i in range(lower_bounds|length) %}
     SELECT 
+        max_heartrate_key,
         start_date,
         end_date,
         {{ i+1 }} AS zone_number,
-        ROUND({{ lower_bounds[i] }} * estimated_max_hr, 0) AS lower_bound,
+        ROUND({{ lower_bounds[i] }} * estimated_max_heartrate_bpm, 0) AS lower_bound,
         CASE 
-            WHEN {{ upper_bounds[i] }} > 0 THEN ROUND({{ upper_bounds[i] }} * estimated_max_hr, 0)
+            WHEN {{ upper_bounds[i] }} > 0 THEN ROUND({{ upper_bounds[i] }} * estimated_max_heartrate_bpm, 0)
             ELSE -1
         END AS upper_bound
-    FROM max_heartrate_date_changes
+    FROM max_heartrate_changes
     {% if not loop.last %}
     UNION ALL
     {% endif %}
@@ -63,6 +53,7 @@ heartrate_zones AS (
 SELECT 
     -- surrogate keys
     {{ dbt_utils.generate_surrogate_key(['start_date', 'zone_number']) }} as heartrate_zone_key,
+    max_heartrate_key::varchar AS max_heartrate_key,
     -- dates
     start_date::date AS start_date,
     end_date::date AS end_date,
