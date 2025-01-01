@@ -50,6 +50,7 @@ dates AS (
 
 zone_bounds AS (
     SELECT 
+        power_zone_key,
         start_date,
         end_date,
         zone_number,
@@ -61,6 +62,8 @@ zone_bounds AS (
 activity_zones AS (
     SELECT 
         activities.activity_key, 
+        TO_DATE(activities.start_date_key, 'yyyymmdd') AS activity_date,
+        zone_bounds.power_zone_key,
         zone_bounds.zone_number,
         zone_bounds.lower_bound, 
         zone_bounds.upper_bound
@@ -75,6 +78,8 @@ activity_zones AS (
 activity_time_in_zones AS (
     SELECT 
         activity_zones.activity_key,
+        activity_zones.power_zone_key,
+        activity_zones.activity_date,
         activity_zones.zone_number,
         COUNT(activity_streams.activity_stream_key) AS moving_time_in_zone
     FROM activity_streams
@@ -82,13 +87,16 @@ activity_time_in_zones AS (
         ON activity_streams.activity_key = activity_zones.activity_key
             AND ((activity_streams.power_watts > activity_zones.lower_bound OR activity_zones.lower_bound = 0) 
             AND (activity_streams.power_watts <= activity_zones.upper_bound OR activity_zones.upper_bound = -1))
-    GROUP BY 1, 2
+    GROUP BY 1, 2, 3, 4
 )
 
 SELECT 
     -- surrogate keys
     {{ dbt_utils.generate_surrogate_key(['activity_key', 'zone_number']) }} as time_in_power_zone_key,
     activity_key::varchar AS activity_key,
+    power_zone_key::varchar AS power_zone_key,
+    -- dates
+    activity_date::date AS activity_date,
     -- dimensions
     zone_number::int AS zone_number,
     -- measures
@@ -96,5 +104,4 @@ SELECT
     -- technical meta-data
     CONVERT_TIMEZONE('UTC', DATE_TRUNC('second', current_timestamp)) AS loaded_timestamp_utc
 FROM activity_time_in_zones
-ORDER BY activity_key, zone_number
 
