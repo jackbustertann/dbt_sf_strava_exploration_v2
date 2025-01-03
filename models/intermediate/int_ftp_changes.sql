@@ -45,18 +45,26 @@ best_20_minute_efforts_for_eligible_rides AS (
         )
 ),
 
-ftp_changes_with_date_ranges AS (
+new_ftp_efforts AS (
     SELECT 
         rides.activity_key,
-        activity_date AS start_date,
-        LEAD(activity_date, 1, CONVERT_TIMEZONE('UTC', current_timestamp)::date) OVER(ORDER BY activity_date) AS end_date,
-        best_efforts.best_20_min_power_watts * 0.95 AS ftp_watts
+        rides.activity_date,
+        best_efforts.best_20_min_power_watts
     FROM eligible_rides rides
     JOIN best_20_minute_efforts_for_eligible_rides best_efforts
         ON rides.activity_key = best_efforts.activity_key
-    QUALIFY best_20_min_power_watts = MAX(best_20_min_power_watts) OVER(
-        ORDER BY activity_date RANGE BETWEEN INTERVAL '365 days' PRECEDING AND CURRENT ROW
+    QUALIFY best_efforts.best_20_min_power_watts = MAX(best_efforts.best_20_min_power_watts) OVER(
+        ORDER BY rides.activity_date RANGE BETWEEN INTERVAL '365 days' PRECEDING AND CURRENT ROW
     )
+),
+
+ftp_changes_with_date_ranges AS (
+    SELECT 
+        activity_key,
+        activity_date AS start_date,
+        LEAD(start_date, 1, CONVERT_TIMEZONE('UTC', current_timestamp)::date) OVER(ORDER BY start_date) AS end_date,
+        best_20_min_power_watts * 0.95 AS ftp_watts
+    FROM new_ftp_efforts
 )
 
 SELECT 
